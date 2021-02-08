@@ -4,6 +4,7 @@ from torch import optim, nn
 import numpy as np
 from Dataset import Dataset
 import models
+import cv2 as cv
 
 def add_noise(std, batch,device='cpu'):
     x = batch
@@ -14,7 +15,7 @@ def add_noise(std, batch,device='cpu'):
     return x.to(device), x_noisy.to(device)
 
 
-def train_GAN(generator, discriminator,dataloader,device='cpu',lambda_ = 0.4, discriminator_iter= 1,std=0.155**2):
+def train_GAN(generator, discriminator,dataloader,device='cpu',lambda_ = 0.4, discriminator_iter= 1,std=0.155**2, verbose = True):
     generator.train()
     discriminator.train()
     optimizerD = optim.Adam(discriminator.parameters(), lr=0.001, betas=(0.5, 0.999))
@@ -22,12 +23,14 @@ def train_GAN(generator, discriminator,dataloader,device='cpu',lambda_ = 0.4, di
     criterion = nn.CrossEntropyLoss()
     criterion_gen = nn.MSELoss()
     discriminator_iterations = discriminator_iter
-    for epoch in range(2):
+    for epoch in range(30):
         for iteration, (inputs, labels) in enumerate(dataloader):
+
             #Fix Generator and train discriminator
             for iteration2, (inputs2, labels2) in enumerate(dataloader):
                 if iteration2 >= discriminator_iterations:
                     break
+
                 # update discriminator
                 optimizerD.zero_grad()
                 optimizerG.zero_grad()
@@ -41,11 +44,10 @@ def train_GAN(generator, discriminator,dataloader,device='cpu',lambda_ = 0.4, di
                 #Calculate loss of discriminator on real input
                 discr_original = discriminator(x)
                 ones = torch.ones(len(discr_original), dtype=torch.long, device=device)
-                loss_discr_original = criterion(discr_original, ones)
 
+                loss_discr_original = criterion(discr_original, ones)
                 #Sum discriminator loss
                 loss_discr = loss_discr_generated + loss_discr_original
-
                 #backpropagation
                 loss_discr.backward()
                 optimizerD.step()
@@ -71,13 +73,47 @@ def train_GAN(generator, discriminator,dataloader,device='cpu',lambda_ = 0.4, di
             optimizerG.step()
             if iteration%10 == 0:
                 print('Total Generator Loss %f Iteration %d ' % (generator_loss, iteration))
+                if verbose:
+                    im = inputs[0].detach().cpu().numpy().astype('uint8')
+                    im = np.reshape(im, (im.shape[1], im.shape[2], im.shape[0]))
+                    im_rec = out_generator[0].detach().cpu().numpy().astype('float')
+                    im_rec = np.reshape(im_rec, (im_rec.shape[1], im_rec.shape[2], im_rec.shape[0]))
+                    cv.imshow('Original Image', im)
+                    cv.imshow('Reconstructed Image', im_rec)
+                    print(out_generator)
+                    cv.waitKey(0)
+                    cv.destroyAllWindows()
+
+def evaluate(model,dataloader,threshold=0.5, device='cpu',verbose=True):
+    model.eval()
+    with torch.no_grad():
+        total = 0.0
+        correct = 0.0
+        for iteration, (inputs, labels) in enumerate(dataloader):
+            out = model(inputs)
+            print(out.shape)
+            _, predicted = torch.max(out.data, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+            print('Predictions/Ground truth')
+            print(predicted)
+            print(labels)
+            if verbose:
+                im = inputs[0].detach().cpu().numpy().astype('uint8')
+                im = np.reshape(im, (im.shape[1], im.shape[2], im.shape[0]))
+
+                cv.imshow('Input Image Predicted ' + str(predicted[0].cpu().detach().numpy()) + ' Label ' + str(labels[0].cpu().detach().numpy()), im)
+                cv.waitKey(0)
+                cv.destroyAllWindows()
+
+        print('Accuracy of the network on the test images: %f %%' % (100*(correct/total)))
 
 
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data_dir", required=False, default = '../../Data/test')
-    parser.add_argument("--test_dir", required=False, default = '../../Data/testset')
+    parser.add_argument("--data_dir", required=False, default = '../../Data/Target/')
+    parser.add_argument("--test_dir", required=False, default = '../../Data/TestSet')
     parser.add_argument("--checkpoint", required=False,default = 'model.pt')
 
     args = parser.parse_args()
@@ -85,10 +121,12 @@ if __name__ == "__main__":
     training_dir = args.data_dir
     test_dir = args.test_dir
 
-    image_datasets = {'train': Dataset(training_dir,mode='positive')}
+    image_datasets = {'train': Dataset(training_dir,mode='positive'), 'val': Dataset(test_dir,mode='mixed')}
 
-    target_dataloader = { x: torch.utils.data.DataLoader(image_datasets[x], batch_size=2, shuffle=True, num_workers=1) for x in ['train']}
+    target_dataloader = { x: torch.utils.data.DataLoader(image_datasets[x], batch_size=12, shuffle=True, num_workers=1) for x in ['train','val']}
     sigma = 0.155
     model = models.NoveltyDetector(noise_std=sigma**2)
 
     train_GAN(model.Generator, model.Discriminator,target_dataloader['train'],device='cpu',lambda_ = 0.4, discriminator_iter= 1)
+    torch.save(model,'model.pt')
+    evaluate(model,target_dataloader['val'])

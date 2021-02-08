@@ -1,6 +1,5 @@
 import os
 import random
-
 import cv2 as cv
 import numpy as np
 import torch
@@ -20,10 +19,13 @@ class Dataset(torch.utils.data.Dataset):
             images = os.listdir(self.path + '/' + data_class)
             for image in images:
                 image_dict = {'path': self.path + '/' + data_class + '/' + image, 'label': data_class}
-                if int(data_class) == 0:
-                    self.interferograms_normal.append(image_dict)
+                if self.mode is not 'mixed':
+                    if int(data_class) == 0:
+                        self.interferograms_normal.append(image_dict)
+                    else:
+                        self.interferograms_deformation.append(image_dict)
                 else:
-                    self.interferograms_deformation.append(image_dict)
+                    self.interferograms_normal.append(image_dict)
         if self.mode == 'positive':
             self.num_examples = len(self.interferograms_deformation)
         else:
