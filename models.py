@@ -57,7 +57,8 @@ class NoveltyDetector(nn.Module):
             nn.LeakyReLU(0.2, inplace=True),
             nn.Conv2d(128, 2, kernel_size=1),
             nn.Flatten(),
-            nn.Linear(242,2)
+            nn.Linear(242,1),
+            nn.Sigmoid()
             )
 
         self.noise_std = noise_std
@@ -69,5 +70,5 @@ class NoveltyDetector(nn.Module):
         x_noise = (x + noise).clamp(0.0, 1.0)
         x_recon = self.Generator(x_noise)
         y = self.Discriminator(x_recon)
-        y = torch.sigmoid(y)
+        #y = torch.nn.Sigmoid(y)
         return y

@@ -15,12 +15,13 @@ def add_noise(std, batch,device='cpu'):
     return x.to(device), x_noisy.to(device)
 
 
-def train_GAN(generator, discriminator,dataloader,device='cpu',lambda_ = 0.4, discriminator_iter= 1,std=0.155**2, verbose = True):
+def train_GAN(generator, discriminator,dataloader,device='cpu',lambda_ = 0.4, discriminator_iter= 1,std=0.155**2, verbose = False):
     generator.train()
     discriminator.train()
     optimizerD = optim.Adam(discriminator.parameters(), lr=0.001, betas=(0.5, 0.999))
     optimizerG = optim.Adam(generator.parameters(), lr=0.001, betas=(0.5, 0.999))
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.BCELoss()
+    criterionBCE = nn.BCELoss()
     criterion_gen = nn.MSELoss()
     discriminator_iterations = discriminator_iter
     for epoch in range(30):
@@ -39,11 +40,15 @@ def train_GAN(generator, discriminator,dataloader,device='cpu',lambda_ = 0.4, di
                 out_generator = generator(x_noisy)
                 #Calculate loss of discriminator on generated input
                 discr_generator = discriminator(out_generator)
-                zeros = torch.zeros(len(discr_generator), dtype=torch.long, device=device)
+                discr_generator = discr_generator.view((discr_generator.shape[0]))
+                zeros = torch.zeros(len(discr_generator), dtype=torch.float, device=device)
+
                 loss_discr_generated = criterion(discr_generator,zeros)
                 #Calculate loss of discriminator on real input
                 discr_original = discriminator(x)
-                ones = torch.ones(len(discr_original), dtype=torch.long, device=device)
+                discr_original = discr_original.view((discr_original.shape[0]))
+
+                ones = torch.ones(len(discr_original), dtype=torch.float, device=device)
 
                 loss_discr_original = criterion(discr_original, ones)
                 #Sum discriminator loss
@@ -61,7 +66,9 @@ def train_GAN(generator, discriminator,dataloader,device='cpu',lambda_ = 0.4, di
             out_generator = generator(x_noisy)
             #Get discriminator's decision
             discrimator_decision_generated = discriminator(out_generator)
-            ones = torch.ones(len(discrimator_decision_generated), dtype=torch.long, device=device)
+            discrimator_decision_generated = discrimator_decision_generated.view((discrimator_decision_generated.shape[0]))
+
+            ones = torch.ones(len(discrimator_decision_generated), dtype=torch.float, device=device)
             #Loss from min-max game
             loss_generator = criterion(discrimator_decision_generated, ones)
             #Loss from Encoder-Decoder module
@@ -80,7 +87,6 @@ def train_GAN(generator, discriminator,dataloader,device='cpu',lambda_ = 0.4, di
                     im_rec = np.reshape(im_rec, (im_rec.shape[1], im_rec.shape[2], im_rec.shape[0]))
                     cv.imshow('Original Image', im)
                     cv.imshow('Reconstructed Image', im_rec)
-                    print(out_generator)
                     cv.waitKey(0)
                     cv.destroyAllWindows()
 
@@ -91,8 +97,9 @@ def evaluate(model,dataloader,threshold=0.5, device='cpu',verbose=True):
         correct = 0.0
         for iteration, (inputs, labels) in enumerate(dataloader):
             out = model(inputs)
-            print(out.shape)
-            _, predicted = torch.max(out.data, 1)
+            predicted = out
+            predicted[out>threshold] = 1
+            predicted[out<=threshold] = 0
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
             print('Predictions/Ground truth')
