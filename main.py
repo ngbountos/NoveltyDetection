@@ -26,7 +26,8 @@ def train_GAN(generator, discriminator,dataloader,device='cpu',lambda_ = 0.4, di
         for iteration, (inputs, labels) in enumerate(dataloader):
             #Fix Generator and train discriminator
             for iteration2, (inputs2, labels2) in enumerate(dataloader):
-
+                if iteration2 >= discriminator_iterations:
+                    break
                 # update discriminator
                 optimizerD.zero_grad()
                 optimizerG.zero_grad()
@@ -50,8 +51,7 @@ def train_GAN(generator, discriminator,dataloader,device='cpu',lambda_ = 0.4, di
                 optimizerD.step()
                 if iteration%10==0:
                     print('Total Discriminator Loss %f Iteration %d '%(loss_discr,iteration))
-                if iteration2 >= discriminator_iterations:
-                    break
+
 
             #Fix Discriminator and Train Generator
             # Add noise for robustness
@@ -91,4 +91,4 @@ if __name__ == "__main__":
     sigma = 0.155
     model = models.NoveltyDetector(noise_std=sigma**2)
 
-    train_GAN(model.Generator, model.Discriminator,target_dataloader['train'],device='cpu',lambda_ = 0.4, discriminator_iter= 0)
+    train_GAN(model.Generator, model.Discriminator,target_dataloader['train'],device='cpu',lambda_ = 0.4, discriminator_iter= 1)
