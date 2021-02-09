@@ -19,7 +19,7 @@ class Dataset(torch.utils.data.Dataset):
             images = os.listdir(self.path + '/' + data_class)
             for image in images:
                 image_dict = {'path': self.path + '/' + data_class + '/' + image, 'label': data_class}
-                if self.mode is not 'mixed':
+                if self.mode != 'mixed':
                     if int(data_class) == 0:
                         self.interferograms_normal.append(image_dict)
                     else:
@@ -45,7 +45,7 @@ class Dataset(torch.utils.data.Dataset):
         image = image[:226, :226, :]
 
         image = np.reshape(image, (image.shape[2], image.shape[0], image.shape[1]))
-
+        image = image/255
         return torch.from_numpy(image).float(), int(image_label)
 
 

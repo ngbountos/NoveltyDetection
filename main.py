@@ -81,7 +81,7 @@ def train_GAN(generator, discriminator,dataloader,device='cpu',lambda_ = 0.4, di
             if iteration%10 == 0:
                 print('Total Generator Loss %f Iteration %d ' % (generator_loss, iteration))
                 if verbose:
-                    im = inputs[0].detach().cpu().numpy().astype('uint8')
+                    im = inputs[0].detach().cpu().numpy().astype('float')
                     im = np.reshape(im, (im.shape[1], im.shape[2], im.shape[0]))
                     im_rec = out_generator[0].detach().cpu().numpy().astype('float')
                     im_rec = np.reshape(im_rec, (im_rec.shape[1], im_rec.shape[2], im_rec.shape[0]))
@@ -106,7 +106,7 @@ def evaluate(model,dataloader,threshold=0.5, device='cpu',verbose=True):
             print(predicted)
             print(labels)
             if verbose:
-                im = inputs[0].detach().cpu().numpy().astype('uint8')
+                im = inputs[0].detach().cpu().numpy().astype('float')
                 im = np.reshape(im, (im.shape[1], im.shape[2], im.shape[0]))
 
                 cv.imshow('Input Image Predicted ' + str(predicted[0].cpu().detach().numpy()) + ' Label ' + str(labels[0].cpu().detach().numpy()), im)
@@ -135,5 +135,6 @@ if __name__ == "__main__":
     model = models.NoveltyDetector(noise_std=sigma**2)
 
     train_GAN(model.Generator, model.Discriminator,target_dataloader['train'],device='cpu',lambda_ = 0.4, discriminator_iter= 1)
-    torch.save(model,'model.pt')
+    torch.save(model.state_dict(),'model.pt')
+    #model.load_state_dict(torch.load('model.pt'))
     evaluate(model,target_dataloader['val'])
