@@ -9,12 +9,13 @@ from PIL import Image
 
 
 class Dataset(torch.utils.data.Dataset):
-    def __init__(self, dataset='../Data/Dataset', mode = 'positive'):
+    def __init__(self, dataset='../Data/Dataset', mode = 'positive', set='train'):
         self.path = dataset
         self.classes = os.listdir(self.path)
         self.interferograms_normal = []
         self.interferograms_deformation = []
         self.mode = mode
+        self.set = set
         for data_class in self.classes:
             images = os.listdir(self.path + '/' + data_class)
             for image in images:
@@ -43,8 +44,14 @@ class Dataset(torch.utils.data.Dataset):
         image_label = image_data['label']
         image = cv.imread(image_file)
         image = image[:226, :226, :]
+        if self.set == 'train':
+            angle = random.randint(0,360)
+
+            M = cv.getRotationMatrix2D((113, 113), angle, 1)
+            image = cv.warpAffine(image, M, (image.shape[1], image.shape[0]))
 
         image = np.reshape(image, (image.shape[2], image.shape[0], image.shape[1]))
+
         image = image/255
         return torch.from_numpy(image).float(), int(image_label)
 
