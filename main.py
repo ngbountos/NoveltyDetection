@@ -18,13 +18,15 @@ def add_noise(std, batch,device='cpu'):
 def train_GAN(generator, discriminator,dataloader,device='cpu',lambda_ = 0.4, discriminator_iter= 1,generator_iter=1,std=0.155**2, verbose = True):
     generator.train()
     discriminator.train()
-    optimizerD = optim.Adam(discriminator.parameters(), lr=0.001, betas=(0.5, 0.999))
-    optimizerG = optim.Adam(generator.parameters(), lr=0.001, betas=(0.5, 0.999))
+    optimizerD = optim.Adam(discriminator.parameters(), lr=0.002, betas=(0.5, 0.999))
+    optimizerG = optim.Adam(generator.parameters(), lr=0.002, betas=(0.5, 0.999))
     criterion = nn.BCELoss()
     criterion_gen = nn.MSELoss()
     discriminator_iterations = discriminator_iter
     generator_iterations = generator_iter
-    for epoch in range(30):
+    loss_mse = 1000
+    epoch = 0
+    while loss_mse>0.005:
         flagD=True
         flagG=False
         counterD = 0
@@ -59,7 +61,7 @@ def train_GAN(generator, discriminator,dataloader,device='cpu',lambda_ = 0.4, di
                 #backpropagation
                 loss_discr.backward()
                 optimizerD.step()
-                if iteration%10==0:
+                if iteration%1==0:
                     print('Total Discriminator Loss %f Iteration %d '%(loss_discr,iteration))
                 counterD+=1
                 if counterD >= discriminator_iterations:
@@ -86,11 +88,14 @@ def train_GAN(generator, discriminator,dataloader,device='cpu',lambda_ = 0.4, di
                 reconstruction_loss = criterion_gen(out_generator,x)
                 #Loss Combination
                 generator_loss = loss_generator + lambda_ *reconstruction_loss
+                #generator_loss = reconstruction_loss
                 #Backpropagtion
                 generator_loss.backward()
                 optimizerG.step()
+                print('Total Generator Loss %f Iteration %d ' % (generator_loss, iteration))
+                loss_mse = reconstruction_loss.item()
+                print('MSE Loss %f' %loss_mse)
                 if iteration%9 == 0 and epoch %5 ==0:
-                    print('Total Generator Loss %f Iteration %d ' % (generator_loss, iteration))
                     if verbose:
                         im = inputs[0].detach().cpu().numpy().astype('float')
                         im = np.reshape(im, (im.shape[1], im.shape[2], im.shape[0]))
@@ -104,6 +109,7 @@ def train_GAN(generator, discriminator,dataloader,device='cpu',lambda_ = 0.4, di
                 if counterG >= generator_iterations:
                     flagD=True
                     counterG = 0
+        epoch+=1
 
 
 def evaluate(model,dataloader,threshold=0.5, device='cpu',verbose=True):
@@ -150,7 +156,7 @@ if __name__ == "__main__":
     sigma = 0.155
     model = models.NoveltyDetector(noise_std=sigma**2)
 
-    train_GAN(model.Generator, model.Discriminator,target_dataloader['train'],device='cpu',lambda_ = 0.4, discriminator_iter= 1, generator_iter=5)
+    train_GAN(model.Generator, model.Discriminator,target_dataloader['train'],device='cpu',lambda_ = 0.4, discriminator_iter=1, generator_iter=1,verbose=False)
     torch.save(model.state_dict(),'model.pt')
     #model.load_state_dict(torch.load('model.pt'))
     evaluate(model,target_dataloader['val'])
