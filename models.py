@@ -2,34 +2,35 @@ import torch
 from torch import nn
 
 import numpy as np
+from torch.nn.utils import spectral_norm
 
 
 class AE(nn.Module):
     def __init__(self):
         super(AE, self).__init__()
         self.encoder_1 = nn.Sequential(
-            nn.Conv2d(3, 6, kernel_size=4),
+            spectral_norm(nn.Conv2d(3, 6, kernel_size=4)),
             nn.ReLU(),
-            nn.Conv2d(6,12,kernel_size=4),
+            spectral_norm(nn.Conv2d(6,12,kernel_size=4)),
             nn.ReLU()
         )
         self.pool = nn.MaxPool2d(2,return_indices=True)
         self.encoder_2 = nn.Sequential(
-            nn.Conv2d(12, 16, kernel_size=4),
+            spectral_norm(nn.Conv2d(12, 16, kernel_size=4)),
             nn.ReLU(),
-            nn.Conv2d(16,16,kernel_size=4),
+            spectral_norm(nn.Conv2d(16,16,kernel_size=4)),
             nn.ReLU()
         )
         self.decoder_2 = nn.Sequential(
-            nn.ConvTranspose2d(16,16,kernel_size=4),
+            spectral_norm(nn.ConvTranspose2d(16,16,kernel_size=4)),
             nn.ReLU(),
-            nn.ConvTranspose2d(16,12,kernel_size=4),
+            spectral_norm(nn.ConvTranspose2d(16,12,kernel_size=4)),
             nn.ReLU())
         self.unpool = nn.MaxUnpool2d(2)
         self.decoder_1 = nn.Sequential(
-            nn.ConvTranspose2d(12,6,kernel_size=4),
+            spectral_norm(nn.ConvTranspose2d(12,6,kernel_size=4)),
             nn.ReLU(),
-            nn.ConvTranspose2d(6,3,kernel_size=4),
+            spectral_norm(nn.ConvTranspose2d(6,3,kernel_size=4)),
             nn.ReLU())
 
     def forward(self, x):
