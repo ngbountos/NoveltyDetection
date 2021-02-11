@@ -142,6 +142,71 @@ def evaluate(model, dataloader, threshold=0.5, device='cpu', verbose=True):
 
         print('Accuracy of the network on the test images: %f %%' % (100 * (correct / total)))
 
+
+def train_classifier(net,trainloader, testloader, device='cpu'):
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
+    for epoch in range(2):  # loop over the dataset multiple times
+
+        running_loss = 0.0
+        for i, data in enumerate(trainloader, 0):
+            # get the inputs; data is a list of [inputs, labels]
+            inputs, labels = data
+
+            # zero the parameter gradients
+            optimizer.zero_grad()
+
+            # forward + backward + optimize
+            outputs = net(inputs)
+            loss = criterion(outputs, labels)
+            loss.backward()
+            optimizer.step()
+
+            # print statistics
+            running_loss += loss.item()
+            if i % 2000 == 1999:  # print every 2000 mini-batches
+                print('[%d, %5d] loss: %.3f' %
+                      (epoch + 1, i + 1, running_loss / 2000))
+                running_loss = 0.0
+
+    print('Finished Training')
+
+    correct = 0
+    total = 0
+    with torch.no_grad():
+        for data in testloader:
+            images, labels = data
+            outputs = net(images)
+            _, predicted = torch.max(outputs.data, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+
+    print('Accuracy of the network on the 10000 test images: %d %%' % (
+            100 * correct / total))
+
+
+def start_classification_training(training_dir,test_dir):
+    image_datasets = {'train': Dataset(training_dir, mode='mixed'), 'val': Dataset(test_dir, mode='mixed', set='val')}
+    target_dataloader = {x: torch.utils.data.DataLoader(image_datasets[x], batch_size=12, shuffle=True, num_workers=1)
+                         for x in ['train', 'val']}
+
+    model = models.Classifier()
+    train_classifier(model, target_dataloader['train'], target_dataloader['val'])
+
+def start_GAN_training(training_dir,test_dir):
+
+    image_datasets = {'train': Dataset(training_dir,mode='positive'), 'val': Dataset(test_dir,mode='mixed',set='val')}
+
+    target_dataloader = { x: torch.utils.data.DataLoader(image_datasets[x], batch_size=12, shuffle=True, num_workers=1) for x in ['train','val']}
+    sigma = 0.155
+
+    model = models.NoveltyDetector(noise_std=sigma**2)
+
+    train_GAN(model.Generator, model.Discriminator,target_dataloader['train'],device='cpu',lambda_ = 0.4, discriminator_iter=1, generator_iter=1,verbose=False)
+    torch.save(model.state_dict(),'model.pt')
+    #model.load_state_dict(torch.load('model.pt'))
+    evaluate(model,target_dataloader['val'])
+
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
@@ -154,13 +219,6 @@ if __name__ == "__main__":
     training_dir = args.data_dir
     test_dir = args.test_dir
 
-    image_datasets = {'train': Dataset(training_dir,mode='positive'), 'val': Dataset(test_dir,mode='mixed',set='val')}
+    start_classification_training(training_dir,test_dir)
 
-    target_dataloader = { x: torch.utils.data.DataLoader(image_datasets[x], batch_size=12, shuffle=True, num_workers=1) for x in ['train','val']}
-    sigma = 0.155
-    model = models.NoveltyDetector(noise_std=sigma**2)
-
-    train_GAN(model.Generator, model.Discriminator,target_dataloader['train'],device='cpu',lambda_ = 0.4, discriminator_iter=1, generator_iter=1,verbose=False)
-    torch.save(model.state_dict(),'model.pt')
-    #model.load_state_dict(torch.load('model.pt'))
-    evaluate(model,target_dataloader['val'])
+    start_GAN_training(training_dir,test_dir)
