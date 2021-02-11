@@ -127,17 +127,17 @@ class Classifier(nn.Module):
         self.conv = nn.Conv2d(3,6,kernel_size=5)
         self.bn1 = nn.BatchNorm2d(6)
         self.relu = nn.ReLU()
-        self.conv2 = nn.Conv2d(6,16, kernel_size=5)
-        self.bn2 = nn.BatchNorm2d(16)
+        self.conv2 = nn.Conv2d(6,9, kernel_size=5)
+        self.bn2 = nn.BatchNorm2d(9)
 
-        self.conv3 = nn.Conv2d(16,32, kernel_size=5)
-        self.bn3 = nn.BatchNorm2d(32)
+        self.conv3 = nn.Conv2d(9,16, kernel_size=7, stride=2)
+        self.bn3 = nn.BatchNorm2d(16)
 
-        self.conv4 = nn.Conv2d(32,64,kernel_size=5)
-        self.bn4 = nn.BatchNorm2d(64)
+        self.conv4 = nn.Conv2d(16,32,kernel_size=5, stride=2)
+        self.bn4 = nn.BatchNorm2d(32)
 
 
-        self.linear = nn.Linear(1465472,1000)
+        self.linear = nn.Linear(83232,1000)
         self.final = nn.Linear(1000,2)
 
     def forward(self, x):
@@ -149,6 +149,9 @@ class Classifier(nn.Module):
         x = self.relu(x)
         x = self.conv3(x)
         x = self.bn3(x)
+        x = self.relu(x)
+        x = self.conv4(x)
+        x = self.bn4(x)
         x = self.relu(x)
         x = nn.Flatten()(x)
         x = self.linear(x)
