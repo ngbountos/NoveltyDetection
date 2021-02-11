@@ -4,6 +4,50 @@ from torch import nn
 import numpy as np
 
 
+class AE(nn.Module):
+    def __init__(self):
+        super(AE, self).__init__()
+        self.encoder_1 = nn.Sequential(
+            nn.Conv2d(3, 6, kernel_size=4),
+            nn.ReLU(),
+            nn.Conv2d(6,12,kernel_size=4),
+            nn.ReLU()
+        )
+        self.pool = nn.MaxPool2d(2,return_indices=True)
+        self.encoder_2 = nn.Sequential(
+            nn.Conv2d(12, 16, kernel_size=4),
+            nn.ReLU(),
+            nn.Conv2d(16,16,kernel_size=4),
+            nn.ReLU()
+        )
+        self.decoder_2 = nn.Sequential(
+            nn.ConvTranspose2d(16,16,kernel_size=4),
+            nn.ReLU(),
+            nn.ConvTranspose2d(16,12,kernel_size=4),
+            nn.ReLU())
+        self.unpool = nn.MaxUnpool2d(2)
+        self.decoder_1 = nn.Sequential(
+            nn.ConvTranspose2d(12,6,kernel_size=4),
+            nn.ReLU(),
+            nn.ConvTranspose2d(6,3,kernel_size=4),
+            nn.ReLU())
+
+    def forward(self, x):
+
+        x = self.encoder_1(x)
+        x , indices = self.pool(x)
+        x = self.encoder_2(x)
+        x, indices2 = self.pool(x)
+        z = x
+        x = self.unpool(x,indices=indices2)
+        x = self.decoder_2(x)
+        x = self.unpool(x, indices= indices)
+        x = self.decoder_1(x)
+
+        return x
+
+
+
 class NoveltyDetector(nn.Module):
 
     def __init__(self, noise_std: float, device='cpu'):
@@ -39,7 +83,7 @@ class NoveltyDetector(nn.Module):
             nn.Sigmoid()
             )
 
-        self.Generator = nn.Sequential(self.encoder,self.decoder)
+        self.Generator = AE() #nn.Sequential(self.encoder,self.decoder)
 
         #Discriminatior
         self.Discriminator = nn.Sequential(
