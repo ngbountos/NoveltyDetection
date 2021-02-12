@@ -121,6 +121,8 @@ def evaluate(model, dataloader, threshold=0.5, device='cpu', verbose=True):
     with torch.no_grad():
         total = 0.0
         correct = 0.0
+        correct_true = 0.0
+        total_true = 0.0
         for iteration, (inputs, labels) in enumerate(dataloader):
             inputs = inputs.to(device)
             labels = labels.to(device)
@@ -133,6 +135,8 @@ def evaluate(model, dataloader, threshold=0.5, device='cpu', verbose=True):
             total += inputs.shape[0]
             t = predicted == labels
             correct += (predicted == labels).sum().item()
+            correct_true += (predicted[labels==1]==labels[labels==1]).sum().item()
+            total_true += labels[labels==1].shape[0]
             print(predicted)
             print(labels)
             if verbose:
@@ -145,6 +149,7 @@ def evaluate(model, dataloader, threshold=0.5, device='cpu', verbose=True):
                 cv.destroyAllWindows()
 
         print('Accuracy of the network on the test images: %f %%' % (100 * (correct / total)))
+        print('True Positive Accuracy of the network on the test images: %f %%' % (100 * (correct_true / total_true)))
 
 
 def train_classifier(net, trainloader, testloader, device='cpu'):
@@ -182,6 +187,8 @@ def train_classifier(net, trainloader, testloader, device='cpu'):
 
         correct = 0
         total = 0
+        correct_true = 0
+        total_true = 0
         net.eval()
         with torch.no_grad():
             for data in testloader:
@@ -192,29 +199,35 @@ def train_classifier(net, trainloader, testloader, device='cpu'):
                 _, predicted = torch.max(outputs.data, 1)
                 total += labels.size(0)
                 correct += (predicted == labels).sum().item()
+                correct_true += (predicted[labels==1]==labels[labels==1]).sum().item()
+                total_true += labels[labels==1].shape[0]
 
         print('Accuracy of the network on the test images: %d %%' % (
                 100 * correct / total))
+        print(' True positive Accuracy of the network on the test images: %d %%' % (
+                100 * correct_true / total_true))
 
     print('Finished Training')
 
 
 def start_classification_training(training_dir, test_dir):
     image_datasets = {'train': Dataset(training_dir, mode='mixed'), 'val': Dataset(test_dir, mode='mixed', set='val')}
-    target_dataloader = {x: torch.utils.data.DataLoader(image_datasets[x], batch_size=500, shuffle=True, num_workers=1)
+    target_dataloader = {x: torch.utils.data.DataLoader(image_datasets[x], batch_size=50, shuffle=True, num_workers=1)
                          for x in ['train', 'val']}
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = models.Classifier()
+    import torchvision
+    model =  torchvision.models.densenet161() #models.Classifier()
     model = model.to(device)
     train_classifier(model, target_dataloader['train'], target_dataloader['val'], device=device)
+    torch.save(model.state_dict(), 'modelCl.pt')
 
 
 def start_GAN_training(training_dir, test_dir):
     image_datasets = {'train': Dataset(training_dir, mode='positive'),
                       'val': Dataset(test_dir, mode='mixed', set='val')}
 
-    target_dataloader = {x: torch.utils.data.DataLoader(image_datasets[x], batch_size=1, shuffle=True, num_workers=1)
+    target_dataloader = {x: torch.utils.data.DataLoader(image_datasets[x], batch_size=12, shuffle=True, num_workers=1)
                          for x in ['train', 'val']}
     sigma = 0.155
 
@@ -230,8 +243,8 @@ def start_GAN_training(training_dir, test_dir):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data_dir", required=False, default='../../Data/Dataset')
-    parser.add_argument("--test_dir", required=False, default='../../Data/TestSet')
+    parser.add_argument("--data_dir", required=False, default='../../Dataset')
+    parser.add_argument("--test_dir", required=False, default='../../TestSet')
     parser.add_argument("--checkpoint", required=False, default='model.pt')
 
     args = parser.parse_args()

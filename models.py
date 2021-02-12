@@ -46,21 +46,21 @@ class NoveltyDetector(nn.Module):
 
         #Discriminatior
         self.Discriminator = nn.Sequential(
-            nn.Conv2d(3, 16,kernel_size=5 ,stride = 2), #112x112
-            nn.BatchNorm2d(16),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.Conv2d(16, 32, kernel_size=5,stride=2), #55x55
-            nn.BatchNorm2d(32),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.Conv2d(32,64, kernel_size=5, stride=2), #27x27
+            spectral_norm(nn.Conv2d(3, 64,kernel_size=5 ,stride = 2)), #112x112
             nn.BatchNorm2d(64),
             nn.LeakyReLU(0.2, inplace=True),
-            nn.Conv2d(64, 128, kernel_size=5,stride=2), #13x13
+            spectral_norm(nn.Conv2d(64, 128, kernel_size=5,stride=2)), #55x55
             nn.BatchNorm2d(128),
             nn.LeakyReLU(0.2, inplace=True),
-            nn.Conv2d(128, 2, kernel_size=1),
+            spectral_norm(nn.Conv2d(128,256, kernel_size=5, stride=2)), #27x27
+            nn.BatchNorm2d(256),
+            nn.LeakyReLU(0.2, inplace=True),
+            spectral_norm(nn.Conv2d(256, 512, kernel_size=5,stride=2)), #13x13
+            nn.BatchNorm2d(512),
+            nn.LeakyReLU(0.2, inplace=True),
+            spectral_norm(nn.Conv2d(512, 2, kernel_size=1)),
             nn.Flatten(),
-            nn.Linear(242,1),
+            spectral_norm(nn.Linear(242,1)),
             nn.Sigmoid()
             )
 
@@ -184,4 +184,3 @@ class OutConv(nn.Module):
 
     def forward(self, x):
         return self.conv(x)
-
