@@ -214,7 +214,7 @@ def start_GAN_training(training_dir, test_dir):
     image_datasets = {'train': Dataset(training_dir, mode='positive'),
                       'val': Dataset(test_dir, mode='mixed', set='val')}
 
-    target_dataloader = {x: torch.utils.data.DataLoader(image_datasets[x], batch_size=12, shuffle=True, num_workers=1)
+    target_dataloader = {x: torch.utils.data.DataLoader(image_datasets[x], batch_size=1, shuffle=True, num_workers=1)
                          for x in ['train', 'val']}
     sigma = 0.155
 
@@ -230,8 +230,8 @@ def start_GAN_training(training_dir, test_dir):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data_dir", required=False, default='/mlscratch/users/pa20/ipapout/Dataset')
-    parser.add_argument("--test_dir", required=False, default='/mlscratch/users/pa20/ipapout/TestSet')
+    parser.add_argument("--data_dir", required=False, default='../../Data/Dataset')
+    parser.add_argument("--test_dir", required=False, default='../../Data/TestSet')
     parser.add_argument("--checkpoint", required=False, default='model.pt')
 
     args = parser.parse_args()
@@ -239,6 +239,6 @@ if __name__ == "__main__":
     training_dir = args.data_dir
     test_dir = args.test_dir
 
-    start_classification_training(training_dir, test_dir)
+    #start_classification_training(training_dir, test_dir)
 
-    # start_GAN_training(training_dir,test_dir)
+    start_GAN_training(training_dir,test_dir)
