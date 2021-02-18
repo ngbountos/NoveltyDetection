@@ -43,7 +43,18 @@ class Dataset(torch.utils.data.Dataset):
         image_file = image_data['path']
         image_label = image_data['label']
         image = cv.imread(image_file)
-        image = image[:226, :226, :]
+        if int(image_label) == 1:
+            tmp = np.zeros_like(image)
+            image = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
+            tmp[:, :, 0] = image
+            tmp[:, :, 1] = image
+            tmp[:, :, 2] = image
+            image = tmp
+            print(image.shape)
+            image = image[:225, :225, :]
+            cv.imshow('im',image)
+            print(image.shape)
+            cv.waitKey(0)
         if self.set == 'train':
             angle = random.randint(0,360)
 
