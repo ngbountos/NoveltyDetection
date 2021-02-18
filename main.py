@@ -154,11 +154,13 @@ def evaluate(model, dataloader, threshold=0.5, device='cpu', verbose=True):
 
 def train_classifier(net, trainloader, testloader, device='cpu'):
     criterion = nn.CrossEntropyLoss()
+    best_val = 0
     optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
     for epoch in range(20):  # loop over the dataset multiple times
         running_loss = 0.0
         correct = 0.0
         total = 0.0
+        net.train()
         for i, data in enumerate(trainloader, 0):
             # get the inputs; data is a list of [inputs, labels]
             inputs, labels = data
@@ -175,7 +177,6 @@ def train_classifier(net, trainloader, testloader, device='cpu'):
             _, predicted = torch.max(outputs.data, 1)
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
-
             # print statistics
             running_loss += loss.item()
             if i % 20 == 0:
@@ -202,25 +203,55 @@ def train_classifier(net, trainloader, testloader, device='cpu'):
                 correct_true += (predicted[labels==1]==labels[labels==1]).sum().item()
                 total_true += labels[labels==1].shape[0]
 
-        print('Accuracy of the network on the test images: %d %%' % (
+        print('Accuracy of the network on the val images: %d %%' % (
                 100 * correct / total))
-        print(' True positive Accuracy of the network on the test images: %d %%' % (
+        print(' True positive Accuracy of the network on the val images: %d %%' % (
                 100 * correct_true / total_true))
+        if correct_true/total_true > best_val:
+            print('New best val acc / Saving model')
+            torch.save(net.state_dict(), 'modelCl.pt')
+            best_val = correct_true/total_true
 
     print('Finished Training')
 
 
-def start_classification_training(training_dir, test_dir):
-    image_datasets = {'train': Dataset(training_dir, mode='mixed'), 'val': Dataset(test_dir, mode='mixed', set='val')}
-    target_dataloader = {x: torch.utils.data.DataLoader(image_datasets[x], batch_size=50, shuffle=True, num_workers=1)
-                         for x in ['train', 'val']}
+def start_classification_training(training_dir, val_dir, test_dir):
+    image_datasets = {'train': Dataset(training_dir, mode='mixed'), 'val': Dataset(val_dir, mode='mixed', set='val'), 'test': Dataset(test_dir, mode='mixed', set='val')}
+    target_dataloader = {x: torch.utils.data.DataLoader(image_datasets[x], batch_size=32, shuffle=True, num_workers=1)
+                         for x in ['train', 'val','test']}
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     import torchvision
-    model =  torchvision.models.densenet161() #models.Classifier()
+    model =  torchvision.models.densenet121() #models.Classifier()
+    model.classifier = nn.Linear(1024,2)
     model = model.to(device)
-    train_classifier(model, target_dataloader['train'], target_dataloader['val'], device=device)
-    torch.save(model.state_dict(), 'modelCl.pt')
+
+    model = model.to(device)
+    train_classifier(model, target_dataloader['train'], target_dataloader['val'],device=device)
+    model.load_state_dict(torch.load('modelCl.pt'))
+    model.eval()
+    correct = 0
+    total = 0
+    correct_true = 0
+    total_true = 0
+    with torch.no_grad():
+            for data in target_dataloader['test']:
+                images, labels = data
+                images = images.to(device)
+                labels = labels.to(device)
+                outputs = model(images)
+                _, predicted = torch.max(outputs.data, 1)
+                total += labels.size(0)
+                correct += (predicted == labels).sum().item()
+                correct_true += (predicted[labels==1]==labels[labels==1]).sum().item()
+                total_true += labels[labels==1].shape[0]
+
+            print('Accuracy of the network on the test images: %d %%' % (100 * correct / total))
+            print(' True positive Accuracy of the network on the test images: %d %%' % (
+                    100 * correct_true / total_true))
+
+
+    #torch.save(model.state_dict(), 'modelCl.pt')
 
 
 def start_GAN_training(training_dir, test_dir):
@@ -243,8 +274,8 @@ def start_GAN_training(training_dir, test_dir):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data_dir", required=False, default='../../Dataset')
-    parser.add_argument("--test_dir", required=False, default='../../TestSet')
+    parser.add_argument("--data_dir", required=False, default='../Data/Dataset')
+    parser.add_argument("--test_dir", required=False, default='../Data/TestSet')
     parser.add_argument("--checkpoint", required=False, default='model.pt')
 
     args = parser.parse_args()
@@ -252,6 +283,6 @@ if __name__ == "__main__":
     training_dir = args.data_dir
     test_dir = args.test_dir
 
-    #start_classification_training(training_dir, test_dir)
+    start_classification_training(training_dir, test_dir)
 
-    start_GAN_training(training_dir,test_dir)
+    #start_GAN_training(training_dir,test_dir)
